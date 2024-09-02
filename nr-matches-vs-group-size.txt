@@ -1,0 +1,4 @@
+group_size,nr_matches
+4,6
+5,10
+6,15
