@@ -104,7 +104,7 @@ def time_slots():
     dates = ["2024-09-07", "2024-09-28", "2024-10-12", "2024-11-02", "2024-11-16", "2024-12-07"]
     def start_times(day, match_duration):
         start = pd.Timestamp.fromisoformat(day + " 11:00:00")
-        end = pd.Timestamp.fromisoformat(day + " 14:00:00")
+        end = pd.Timestamp.fromisoformat(day + " 13:00:00")
         return pd.date_range(start, end, freq=match_duration, inclusive="left")
 
     match_duration = pd.Timedelta("30min")
@@ -115,20 +115,68 @@ def time_slots():
     slots = [TimeSlot(court, start, end) for start, end in zip(slots_start, slots_end) for court in courts]
     return  slots
     
+# TODO: create all players as global variables. 
+# .     now, without it, names must equals between singles and doubles
+PETER_J = Player("Peter J")
+EDWIN_D = Player("Edwin Dabbaghyan")
+DAVID = Player("David Öreby")
+EDVIN_S = Player("Edvin S")
+KRISTUPAS = Player("Kristupas")
+TIAN = Player("Tianhao Liu")
+PATRIK = Player("Patrik Blix")
+DUSHYANTAN = Player("Dushyanthan")
+DENNIS = Player("Dennis")
+TOMAS = Player("Tomas")
+SISIR = Player("Sisir")
+GUNNAR = Player("Gunnar")
+
+
 GROUPS = {
     "Group1 Singles": [
         Player("Lukas L"),
         Player("Robert W"),
         Player("Oskar S"),
-        Player("Edwin Dabbaghyan"),
+        EDWIN_D,
         Player("Jian Zhang"),
     ],
     "Group2 Singles": [
-        Player("Tomas A"),
-        Player("David Öreby"),
-        Player("Gunnar"),
+        TOMAS,
+        GUNNAR,
         Player("Saby"),
-        Player("Edvin S"),
+        DAVID,
+        EDVIN_S
+    ],
+    "Group3 Singles": [
+        Player("Alex Chiang"),
+        PETER_J,
+        KRISTUPAS,
+        TIAN,
+        PATRIK
+    ],
+    "Group4 Singles": [
+        DUSHYANTAN,
+        Player("Kotryna"),
+        Player("Ronnie"),
+        SISIR,
+        DENNIS
+        
+    ],
+    "Group1 Doubles": [
+        Team(player1=Player("Filippo"), player2=Player("Yang")),
+        Team(player1=TOMAS, player2=Player("Josef")),
+        Team(player1=Player("Peter A"), player2=Player("Kristoffer")),
+        Team(player1=Player("Nhan"), player2=EDWIN_D),
+        Team(player1=Player("Pierre"), player2=Player("Paulina")),
+        Team(player1=Player("Danne"), player2=Player("Elodie")),
+        
+    ],
+    "Group2 Doubles": [
+        Team(player1=PATRIK, player2=Player("Stefan Winge")),
+        Team(player1=DENNIS, player2=TIAN),
+        Team(player1=DAVID, player2=Player("John")),
+        Team(player1=KRISTUPAS, player2=DUSHYANTAN),
+        Team(player1=SISIR, player2=PETER_J),
+        Team(player1=EDVIN_S, player2=GUNNAR)
     ]
 }
 
@@ -144,7 +192,6 @@ def assign_times(matches):
         times = times[:len(matches)]
 
     random.shuffle(times)
-    nr_matches = len(matches)
     unassigned = matches.copy()
     assigned = []
     for t in times:
@@ -173,13 +220,17 @@ def assign_times(matches):
 
 def print_group_schedule(matches):
     group = matches[0].group
-    print(group)
+    print(f"*** SCHEDULE {group}. Copy below, paste into Google Sheets, click 'Data -> Split text to columns'")
     print("Date,Time,Court,Competitor 1,Competitor 2,Set1,Set2,Set3")
+    matches = sorted(matches, key=lambda m: (m.time.start_time, m.time.court_nr))
     for m in matches:
         court = m.time.court_nr
         start_time = m.time.start_time
         end_time = m.time.end_time
-        print(f"{start_time.date().strftime('%b %d')},{start_time.time().isoformat('minutes')}-{end_time.time().isoformat('minutes')},{court},{m.competitor1.name},{m.competitor2.name},,,")
+        # Randomize order of competitors so that 1st can be considered responsible
+        c1, c2 = random.sample([m.competitor1, m.competitor2], 2)
+        print(f"{start_time.date().strftime('%b %d')},{start_time.time().isoformat('minutes')}-{end_time.time().isoformat('minutes')},{court},{c1.name},{c2.name},,,")
+    print("")
 
 
 def main(args):
@@ -189,8 +240,6 @@ def main(args):
     for group in GROUPS:
         matches_group = [m for m in matches if m.group == group]
         print_group_schedule(matches_group)
-    pprint(matches)
-    return matches[0]
 
 
 if __name__ == "__main__":
@@ -202,7 +251,7 @@ if __name__ == "__main__":
                     )
     #parser.add_argument('players', type=str, nargs='+',
     #                help='Players in the round-robin')
-    #args = parser.parse_args()      
+    args = parser.parse_args()      
     #players = args.players
     #if len(players) == 1:
     #    print(f"Nr of players passed is only 1! Pass at least 2.")
@@ -216,6 +265,6 @@ if __name__ == "__main__":
     #players = [Player(name=player) for player in players_unique]
 
     #pprint(round_robin(players))
-    m=main(None)
+    main(args)
 
     
