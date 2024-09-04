@@ -7,6 +7,7 @@ python main.py player1 player2 player3
 """
 
 import argparse
+import random
 from typing import Tuple, Union
 import sys
 from collections import namedtuple
@@ -16,6 +17,8 @@ import pandas as pd
 from datetime import time as timeofday
 from dataclasses import dataclass
 from enum import Enum
+
+DEBUG = False
 
 class Sex(str, Enum):
     male = "male"
@@ -58,6 +61,10 @@ class Player(Competitor):
     def __str__(self):
         return f"{self.name}" #, Position: {self.position}"
 
+    @property
+    def players(self):
+        return [self]
+
 
 class Team(Competitor):
     def __init__(self, player1, player2):
@@ -70,8 +77,9 @@ class Team(Competitor):
     def __str__(self):
         return f"{str(self.player1)} + {str(self.player2)}"
     
+    @property
     def players(self):
-        return self.player1, self.player2
+        return [self.player1, self.player2]
 
 
 TimeSlot = namedtuple("TimeSlot", "court_nr start_time end_time")
@@ -82,6 +90,11 @@ class Match:
     competitor2: Competitor
     group: str
     time: TimeSlot = None
+
+    @property
+    def players(self):
+        return self.competitor1.players + self.competitor2.players
+        
 
 
 def round_robin(competitors, group):
@@ -126,15 +139,58 @@ def assign_times(matches):
     times = time_slots()
     if len(matches) > len(times):
         raise Infeasible(f"Nr of matches {len(matches)} > nr of time time slots {len(times)}")
+    while len(times) > len(matches):
+        # Remove superfluous time slots
+        times = times[:len(matches)]
+
+    random.shuffle(times)
+    nr_matches = len(matches)
+    unassigned = matches.copy()
+    assigned = []
+    for t in times:
+        simultaneous_matches = [m for m in assigned if m.time.start_time == t.start_time]
+        players_in_simultaneous_matches = [m.players for m in simultaneous_matches]
+        while True:
+            candidate = unassigned.pop()
+
+            if DEBUG and simultaneous_matches:
+                print('time ', t)
+                print('candidate match = ', candidate)
+                print('Checking if no conflicts')
+                print('simultaneous matches:')
+                pprint(simultaneous_matches)
+                print(players_in_simultaneous_matches)
+            
+            if any(p in players_in_simultaneous_matches for p in candidate.players):
+                if DEBUG:
+                    print("\n**** CONFLICT: try a different candidate match\n\n\n")
+                unassigned = [candidate] + unassigned
+                continue
+            candidate.time = t
+            assigned.append(candidate)
+            break
+    assert len(assigned) == len(matches), "Not all matches were assigned! Could be a bug, but try running again."
+
+def print_group_schedule(matches):
+    group = matches[0].group
+    print(group)
+    print("Date,Time,Court,Competitor 1,Competitor 2,Set1,Set2,Set3")
     for m in matches:
-        m.time = times.pop()
+        court = m.time.court_nr
+        start_time = m.time.start_time
+        end_time = m.time.end_time
+        print(f"{start_time.date().strftime('%b %d')},{start_time.time().isoformat('minutes')}-{end_time.time().isoformat('minutes')},{court},{m.competitor1.name},{m.competitor2.name},,,")
 
 
 def main(args):
     matches = [round_robin(competitors, group) for group, competitors in GROUPS.items()]
     matches = [m for mm in matches for m in mm] # flatten
     assign_times(matches)
+    for group in GROUPS:
+        matches_group = [m for m in matches if m.group == group]
+        print_group_schedule(matches_group)
     pprint(matches)
+    return matches[0]
 
 
 if __name__ == "__main__":
@@ -160,6 +216,6 @@ if __name__ == "__main__":
     #players = [Player(name=player) for player in players_unique]
 
     #pprint(round_robin(players))
-    main(None)
+    m=main(None)
 
     
