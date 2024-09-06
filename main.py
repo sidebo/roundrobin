@@ -44,15 +44,6 @@ class Team:
 @dataclass
 class Competitor:
     name: str
-#
-#    def __init__(self, player_or_team: Union[str, Player, Tuple[Player]]):
-#        if isinstance(player_or_team, str):
-#            self = Player(player_or_team)
-#        elif isinstance(player_or_team, Player):
-#            self = player_or_team
-#        elif isinstance(player_or_team, list):
-#            self = Team(*player_or_team)
-
 
 class Player(Competitor):
     def __init__(self, name):
@@ -96,27 +87,6 @@ class Match:
         return self.competitor1.players + self.competitor2.players
         
 
-
-def round_robin(competitors, group):
-    return [Match(*c, group=group) for c in combinations(competitors, 2)]
-    
-def time_slots():
-    dates = ["2024-09-07", "2024-09-28", "2024-10-12", "2024-11-02", "2024-11-16", "2024-12-07"]
-    def start_times(day, match_duration):
-        start = pd.Timestamp.fromisoformat(day + " 11:00:00")
-        end = pd.Timestamp.fromisoformat(day + " 13:00:00")
-        return pd.date_range(start, end, freq=match_duration, inclusive="left")
-
-    match_duration = pd.Timedelta("30min")
-    courts = [10, 11, 12]
-    slots_start = [start_times(day, match_duration) for day in dates]
-    slots_start = [s for ss in slots_start for s in ss] # flatten
-    slots_end = [s + match_duration for s in slots_start]
-    slots = [TimeSlot(court, start, end) for start, end in zip(slots_start, slots_end) for court in courts]
-    return  slots
-    
-# TODO: create all players as global variables. 
-# .     now, without it, names must equals between singles and doubles
 PETER_J = Player("Peter J")
 EDWIN_D = Player("Edwin Dabbaghyan")
 DAVID = Player("David Öreby")
@@ -129,26 +99,54 @@ DENNIS = Player("Dennis")
 TOMAS = Player("Tomas")
 SISIR = Player("Sisir")
 GUNNAR = Player("Gunnar")
+JESSIE = Player("Jessie")
+RONNIE = Player("Ronnie")
 
+def round_robin(competitors, group):
+    return [Match(*c, group=group) for c in combinations(competitors, 2)]
+    
+def time_slots():
+    dates = ["2024-09-07", "2024-09-28", "2024-10-12", "2024-11-02", "2024-11-16", "2024-12-07"]
+    def start_times(day, match_duration, start="11:00:00", end="13:00:00"):
+        start = pd.Timestamp.fromisoformat(day + " " + start)
+        end = pd.Timestamp.fromisoformat(day + " " + end)
+        return pd.date_range(start, end, freq=match_duration, inclusive="left")
+
+    match_duration = pd.Timedelta("30min")
+    courts = [10, 11, 12]
+    slots_start = [start_times(day, match_duration) for day in dates]
+    slots_start = [s for ss in slots_start for s in ss] # flatten
+    slots_end = [s + match_duration for s in slots_start]
+    slots = [TimeSlot(court, start, end) for start, end in zip(slots_start, slots_end) for court in courts]
+    # 13-14 matches on court 10
+    slots_start = [start_times(day, match_duration, "13:00:00", "14:00:00") for day in dates]
+    slots_start = [s for ss in slots_start for s in ss] # flatten
+    slots_end = [s + match_duration for s in slots_start]
+    slots = slots + [TimeSlot(10, start, end) for start, end in zip(slots_start, slots_end)]
+
+    return  slots
+    
+    
 
 GROUPS = {
     "Group1 Singles": [
         Player("Lukas L"),
         Player("Robert W"),
-        Player("Oskar S"),
         EDWIN_D,
         Player("Jian Zhang"),
+        TOMAS,
+        EDVIN_S,
     ],
     "Group2 Singles": [
-        TOMAS,
+        Player("Oskar S"),
         GUNNAR,
         Player("Saby"),
         DAVID,
-        EDVIN_S
+        PETER_J,
     ],
     "Group3 Singles": [
+        JESSIE,
         Player("Alex Chiang"),
-        PETER_J,
         KRISTUPAS,
         TIAN,
         PATRIK
@@ -156,9 +154,9 @@ GROUPS = {
     "Group4 Singles": [
         DUSHYANTAN,
         Player("Kotryna"),
-        Player("Ronnie"),
         SISIR,
-        DENNIS
+        DENNIS,
+        RONNIE
         
     ],
     "Group1 Doubles": [
@@ -168,7 +166,7 @@ GROUPS = {
         Team(player1=Player("Nhan"), player2=EDWIN_D),
         Team(player1=Player("Pierre"), player2=Player("Paulina")),
         Team(player1=Player("Danne"), player2=Player("Elodie")),
-        
+        Team(player1=EDVIN_S, player2=GUNNAR)
     ],
     "Group2 Doubles": [
         Team(player1=PATRIK, player2=Player("Stefan Winge")),
@@ -176,7 +174,7 @@ GROUPS = {
         Team(player1=DAVID, player2=Player("John")),
         Team(player1=KRISTUPAS, player2=DUSHYANTAN),
         Team(player1=SISIR, player2=PETER_J),
-        Team(player1=EDVIN_S, player2=GUNNAR)
+        Team(player1=JESSIE, player2=RONNIE)
     ]
 }
 
@@ -194,28 +192,38 @@ def assign_times(matches):
     random.shuffle(times)
     unassigned = matches.copy()
     assigned = []
+    nr_failed_attempts = 0
     for t in times:
+        if DEBUG:
+            print("Assigning match to time ", t)
         simultaneous_matches = [m for m in assigned if m.time.start_time == t.start_time]
         players_in_simultaneous_matches = [m.players for m in simultaneous_matches]
+        players_in_simultaneous_matches = [p for pp in players_in_simultaneous_matches for p in pp] # flatten
+
         while True:
             candidate = unassigned.pop()
 
             if DEBUG and simultaneous_matches:
-                print('time ', t)
-                print('candidate match = ', candidate)
-                print('Checking if no conflicts')
-                print('simultaneous matches:')
+                print("Simultaneous matches:")
                 pprint(simultaneous_matches)
+                print("Players in simultaneous matches:")
                 print(players_in_simultaneous_matches)
+                print(candidate.players)
             
             if any(p in players_in_simultaneous_matches for p in candidate.players):
                 if DEBUG:
-                    print("\n**** CONFLICT: try a different candidate match\n\n\n")
+                    print("**** CONFLICT: trying a different candidate match.")
                 unassigned = [candidate] + unassigned
+                nr_failed_attempts += 1
+                if nr_failed_attempts == len(unassigned):
+                    print("ERROR tried all candidates, cannot resolve conflict! Try running again.")
+                    raise Infeasible()
                 continue
             candidate.time = t
             assigned.append(candidate)
             break
+        print("Successfully assigned. Time slots left to assign=", len(unassigned))
+        nr_failed_attempts = 0
     assert len(assigned) == len(matches), "Not all matches were assigned! Could be a bug, but try running again."
 
 def print_group_schedule(matches):
