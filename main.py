@@ -147,14 +147,14 @@ GROUPS = {
     "Group3 Singles": [
         JESSIE,
         Player("Alex Chiang"),
-        KRISTUPAS,
         TIAN,
-        PATRIK
+        PATRIK,
+        SISIR,
     ],
     "Group4 Singles": [
+        KRISTUPAS,
         DUSHYANTAN,
         Player("Kotryna"),
-        SISIR,
         DENNIS,
         RONNIE
         
