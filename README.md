@@ -1,5 +1,6 @@
-# Example run
+# Quick-start
 
+Edit `GROUPS` in main.py. Then simply run
 ```
-$ cat group1.txt | xargs python main.py
+$ python main.py
 ```

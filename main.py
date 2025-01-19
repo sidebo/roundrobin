@@ -87,17 +87,34 @@ class Match:
         return self.competitor1.players + self.competitor2.players
         
 
+OSKAR = Player("Oskar")
 PETER_J = Player("Peter J")
+BERT = Player("Bert")
+KABIR = Player("Kabir") 
+JOHN = Player("John")
+ELODIE = Player("Elodie")
+PAULINA = Player("Paulina")
+OLIVER = Player("Oliver")
 EDWIN_D = Player("Edwin Dabbaghyan")
 DAVID = Player("David Öreby")
 EDVIN_S = Player("Edvin S")
+ROBERT_W = Player("Robert W")
+JIAN = Player("Jian Zhang")
+JOSEF = Player("Josef")
+HANNA = Player("Hanna")
+FILIPPO = Player("Filippo")
+YANG = Player("Yang")
 KRISTUPAS = Player("Kristupas")
 TIAN = Player("Tianhao Liu")
 PATRIK = Player("Patrik Blix")
 DUSHYANTAN = Player("Dushyanthan")
 DENNIS = Player("Dennis")
 TOMAS = Player("Tomas")
+SABY = Player("Saby")
+NHAN = Player("Nhan")
+NITIN = Player("Nitin")
 SISIR = Player("Sisir")
+STEFAN = Player("Stefan")
 GUNNAR = Player("Gunnar")
 JESSIE = Player("Jessie")
 RONNIE = Player("Ronnie")
@@ -106,7 +123,9 @@ def round_robin(competitors, group):
     return [Match(*c, group=group) for c in combinations(competitors, 2)]
     
 def time_slots():
-    dates = ["2024-09-07", "2024-09-28", "2024-10-12", "2024-11-02", "2024-11-16", "2024-12-07"]
+    """Saturday time slots on courts 10,11,12"""
+    dates = ["2025-02-15", "2025-03-15", "2025-04-05", "2025-05-03", "2025-05-24"]
+    assert all(pd.Timestamp(d).weekday() == 5 for d in dates), "Not all dates are Saturdays!"
     def start_times(day, match_duration, start="11:00:00", end="13:00:00"):
         start = pd.Timestamp.fromisoformat(day + " " + start)
         end = pd.Timestamp.fromisoformat(day + " " + end)
@@ -130,53 +149,59 @@ def time_slots():
 
 GROUPS = {
     "Group1 Singles": [
-        Player("Lukas L"),
-        Player("Robert W"),
-        EDWIN_D,
-        Player("Jian Zhang"),
-        TOMAS,
         EDVIN_S,
+        GUNNAR,
+        DAVID,
+        JOSEF,
+        ROBERT_W
     ],
     "Group2 Singles": [
-        Player("Oskar S"),
-        GUNNAR,
-        Player("Saby"),
-        DAVID,
-        PETER_J,
+        JIAN,
+        TOMAS,
+        NHAN,
+        NITIN,
+        SABY,
+        TIAN
     ],
     "Group3 Singles": [
-        JESSIE,
-        Player("Alex Chiang"),
-        TIAN,
-        PATRIK,
+        PETER_J,
+        KABIR, 
+        JOHN,
         SISIR,
     ],
     "Group4 Singles": [
-        KRISTUPAS,
-        DUSHYANTAN,
-        Player("Kotryna"),
-        DENNIS,
+        ELODIE,
+        PAULINA,
+        OLIVER,
         RONNIE
-        
     ],
     "Group1 Doubles": [
-        Team(player1=Player("Filippo"), player2=Player("Yang")),
-        Team(player1=TOMAS, player2=Player("Josef")),
-        Team(player1=Player("Peter A"), player2=Player("Kristoffer")),
-        Team(player1=Player("Nhan"), player2=EDWIN_D),
-        Team(player1=Player("Pierre"), player2=Player("Paulina")),
-        Team(player1=Player("Danne"), player2=Player("Elodie")),
-        Team(player1=EDVIN_S, player2=GUNNAR)
+        Team(player1=HANNA, player2=JOSEF),
+        Team(player1=Player("Danne"), player2=ELODIE),
+        Team(player1=EDVIN_S, player2=GUNNAR),
+        Team(player1=DENNIS, player2=TIAN),
+        Team(player1=DAVID, player2=JOHN),
+        Team(player1=TOMAS, player2=OSKAR)
     ],
     "Group2 Doubles": [
-        Team(player1=PATRIK, player2=Player("Stefan Winge")),
-        Team(player1=DENNIS, player2=TIAN),
-        Team(player1=DAVID, player2=Player("John")),
-        Team(player1=KRISTUPAS, player2=DUSHYANTAN),
-        Team(player1=SISIR, player2=PETER_J),
-        Team(player1=JESSIE, player2=RONNIE)
+        Team(player1=Player("Pierre"), player2=PAULINA),
+        Team(player1=FILIPPO, player2=YANG),
+        Team(player1=SISIR, player2=STEFAN),
+        Team(player1=KRISTUPAS, player2=NITIN),
+        Team(player1=KABIR, player2=OLIVER),
+        Team(player1=PETER_J, player2=BERT)
     ]
 }
+
+# Sanity check
+for group, competitors in GROUPS.items():
+    if "singles" in group.lower():
+        assert all(isinstance(c, Player) for c in competitors)
+    elif "doubles" in group.lower():
+        assert all(isinstance(c, Team) for c in competitors)
+    else:
+        # should be either singles or doubles
+        raise ValueError(group)
 
 class Infeasible(Exception):
     pass
@@ -229,7 +254,7 @@ def assign_times(matches):
 def print_group_schedule(matches):
     group = matches[0].group
     print(f"*** SCHEDULE {group}. Copy below, paste into Google Sheets, click 'Data -> Split text to columns'")
-    print("Date,Time,Court,Competitor 1,Competitor 2,Set1,Set2,Set3")
+    print("Date,Time,Court,Competitor 1,Competitor 2,Set1,Set2,Set3,Winner")
     matches = sorted(matches, key=lambda m: (m.time.start_time, m.time.court_nr))
     for m in matches:
         court = m.time.court_nr
@@ -237,7 +262,7 @@ def print_group_schedule(matches):
         end_time = m.time.end_time
         # Randomize order of competitors so that 1st can be considered responsible
         c1, c2 = random.sample([m.competitor1, m.competitor2], 2)
-        print(f"{start_time.date().strftime('%b %d')},{start_time.time().isoformat('minutes')}-{end_time.time().isoformat('minutes')},{court},{c1.name},{c2.name},,,")
+        print(f"{start_time.date().strftime('%b %d')},{start_time.time().isoformat('minutes')}-{end_time.time().isoformat('minutes')},{court},{c1.name},{c2.name},,,,")
     print("")
 
 
